@@ -192,9 +192,169 @@ get result in Handler: WORLD in Thread:Thread-0  （Future回调，当Future完�
 
 ## Callback Hell
 
+### 多层调用
+
 上面演示了一次异步调用时回调的使用方法。
 但是如果我们要在“异步”调用上，实现类似“顺序调用”逻辑呢？比如：
 
 ``` java
 obj.doSomething1().doSomething2().doSomething3();
 ```
+
+如果换做异步的回调，应该是：
+
+``` java
+doSomething1("Peter").setHandler(r1 -> {
+			doSomething2(r1.result()).setHandler(r2 -> {
+				doSomething3(r2.result()).setHandler(r3 -> {
+					System.out.println("S1->S2->S3: " + r3.result() + " in Thread: " + Thread.currentThread().getName());
+				});
+			});
+		});
+```
+
+对比一下，我们就能发现，异步的方式，使用起来实在太麻烦。得亏是Java8支持``Lambda``，否则语法会极其复杂。
+
+具体三个加工环节：
+
+``` java
+static Future<String> doSomething1(String input) {
+		Future<String> r1 = Future.future();
+		new Thread(() -> {
+			try {
+				Thread.sleep(1000L * 3);
+				System.out.println("Append Hello in Thread: " + Thread.currentThread().getName());
+				r1.complete(input+ ", Hello");
+			} catch (Exception e) {
+				r1.fail(e);
+			}
+
+		}, "Thread-S1").start();
+
+		return r1;
+	}
+
+	static Future<String> doSomething2(String input) {
+		Future<String> r2 = Future.future();
+		new Thread(() -> {
+			try {
+				Thread.sleep(1000L * 2);
+				System.out.println("Append World in Thread: " + Thread.currentThread().getName());
+				r2.complete(input+ " World");
+			} catch (Exception e) {
+				r2.fail(e);
+			}
+
+		}, "Thread-S2").start();
+
+		return r2;
+
+	}
+
+	static Future<String> doSomething3(String input) {
+		Future<String> r3 = Future.future();
+		new Thread(() -> {
+			try {
+				Thread.sleep(1000L * 1);
+				System.out.println("Append ! in Thread: " + Thread.currentThread().getName());
+				r3.complete(input+ " !");
+			} catch (Exception e) {
+				r3.fail(e);
+			}
+
+		}, "Thread-S3").start();
+
+		return r3;
+	}
+```
+
+### 考虑异常
+
+刚才我们并没有考虑异常处理，如果每个步骤考虑异常处理，这个多层调用会显得更加臃肿：
+
+``` java
+doSomething1("Peter").setHandler(r1 -> {
+
+			if(r1.failed()) {
+				throw new IllegalStateException("Fail in Step-1", r1.cause());
+			}
+
+			doSomething2(r1.result()).setHandler(r2 -> {
+
+				if (r2.failed()) {
+					throw new IllegalStateException("Fail in Step-2", r2.cause());
+				}
+
+				doSomething3(r2.result()).setHandler(r3 -> {
+
+					if (r3.failed()) {
+						throw new IllegalStateException("Fail in Step-3", r3.cause());
+					}
+
+					System.out.println("S1->S2->S3: " + r3.result() + " in Thread: " + Thread.currentThread().getName());
+				});
+			});
+		});
+```
+
+运行结果：
+
+```
+Append Hello in Thread: Thread-S1
+Append World in Thread: Thread-S2
+Append ! in Thread: Thread-S3
+S1->S2->S3: Peter, Hello World ! in Thread: Thread-S3
+```
+
+### fluent 方式
+
+上面，我们采用了 ``fluent`` 的风格 + Java8的 ``Lambda``，才让异步调用变得简单。如果我们不采用``fluent`` 风格呢？
+
+``` java
+Future<String> s1 = doSomething1("Peter");
+		s1.setHandler(r1 -> {
+			if (r1.failed()) {
+				throw new IllegalStateException("Fail in Step-1", r1.cause());
+			}
+
+			Future<String> s2 = doSomething2(r1.result());
+			s2.setHandler(r2 -> {
+				if (r2.failed()) {
+					throw new IllegalStateException("Fail in Step-2", r2.cause());
+				}
+
+				Future<String> s3 = doSomething3(r2.result());
+				System.out.println("S1->S2->S3: " + s3.result() + " in Thread: " + Thread.currentThread().getName());
+
+			});
+
+		});
+```
+
+### compose 有何用？
+
+我们刚看了 ``future.setHandler()``，是用来等异步结果出来后，回调对结果做处理的，我们可以在Handler里面进行判断，如果成功，执行一段逻辑；如果失败，执行另一段逻辑。``Future``类，搞了个``compose``方法提供两个参数，第一个是成功时调用的，第二个是失败时调用的。
+
+``` java
+default <U> void compose(Handler<T> handler, Future<U> next) {
+  setHandler(ar -> {
+    if (ar.succeeded()) {
+      try {
+        handler.handle(ar.result());
+      } catch (Throwable err) {
+        if (next.isComplete()) {
+          throw err;
+        }
+        next.fail(err);
+      }
+    } else {
+      next.fail(ar.cause());
+    }
+  });
+}
+```
+
+> When this future succeeds, the handler will be called with the value.
+> When this future fails, the failure will be propagated to the {@code next} future.
+
+尽管它的代码我看明白了，但是似乎这个东西对简化代码没什么价值？！
