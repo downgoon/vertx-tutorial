@@ -36,11 +36,15 @@ public class Example02 extends AbstractVerticle {
 
 			// Execute a blocking part
 			vertx.executeBlocking(future -> {
+				System.out.println("Blocking Read File: " + filename + " in Thread: " + Thread.currentThread().getName());
 				byte[] bytes = parseLargeFile(filename);
 				// Complete the future with the generated objects in the
 				// blocking method
 				future.complete(bytes);
 			} , res -> {
+				
+				System.out.println("Async Result Got in Thread: " + Thread.currentThread().getName());
+				
 				if (res.succeeded()) {
 					// If the blocking part succeedeed
 					byte[] bytes = (byte[]) res.result();
