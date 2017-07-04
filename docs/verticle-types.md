@@ -12,6 +12,10 @@
 
 相比``Standard verticles``最重要的是：事件的处理是在``worker``线程里面执行的，不占用``event loop``线程。
 
+**温馨提醒**
+
+>``verticle types``两种模式：``Standard``和``Worker``模式，其实跟主流Web服务器说的``Worker``模式与``Selector``模式是一样的。主流服务器，比如``tomcat``和``Resin``等都支持这两种模式。
+
 ## 颠覆观念
 
 - ``verticle types`` 不是真的 ``type``，只是部署参数

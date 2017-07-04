@@ -34,6 +34,9 @@ Async Result Got in Thread: vert.x-eventloop-thread-1
 
 - [verticle types](docs/verticle-types.md)
 
+## event bus
+
+- [event-bus](docs/event-bus.md)
 
 # 参考资料
 
