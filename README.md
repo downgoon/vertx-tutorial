@@ -29,7 +29,10 @@ Async Result Got in Thread: vert.x-eventloop-thread-1
 ### Example03
 
 - [future-callback-hell.md](docs/future-callback-hell.md)
-- 
+
+## verticle
+
+- [verticle types](docs/verticle-types.md)
 
 
 # 参考资料
