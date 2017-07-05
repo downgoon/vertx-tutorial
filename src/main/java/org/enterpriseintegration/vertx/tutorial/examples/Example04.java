@@ -16,8 +16,8 @@ public class Example04 extends AbstractVerticle {
 		Future<Vertx> deploymentFuture = ExampleUtil.deployVerticle(new Example04());
 		
 		//We need to send an endpoint once the verticle has been deployed so we create a custom handler on the deployment process
-		deploymentFuture.setHandler(handler -> {
-			EventBus eventBus = handler.result().eventBus();
+		deploymentFuture.setHandler(ar -> {
+			EventBus eventBus = ar.result().eventBus();
 			
 			//Publish a message that will be managed by the verticle
 			eventBus.publish("customer.create", new JsonObject().put("name", "ben"));
@@ -33,11 +33,11 @@ public class Example04 extends AbstractVerticle {
 		MessageConsumer<JsonObject> createConsumer = vertx.eventBus().consumer("customer.create");
 		
 		//Handle new messages on customer.create endpoint
-		createConsumer.handler(json -> {
-			System.out.println("Received new customer: " + json.body());
+		createConsumer.handler(message -> {
+			System.out.println("Received new customer: " + message.body());
 			
 			//Enrich the customer object
-			JsonObject enrichedCustomer = enrichCustomer(json.body());
+			JsonObject enrichedCustomer = enrichCustomer(message.body());
 			
 			//Publish the enriched message on another endpoint
 			eventBus.publish("customer.completion", enrichedCustomer);
