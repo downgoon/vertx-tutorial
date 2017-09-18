@@ -18,8 +18,8 @@ public class StandardSample extends AbstractVerticle {
 		vertx.deployVerticle("org.enterpriseintegration.vertx.tutorial.examples.example05.StandardSample",
 				// Instantiate a DeploymentOptions by setting an explicit number
 				// of instances
-				new DeploymentOptions().setInstances(instances), res -> {
-					if (res.succeeded()) {
+				new DeploymentOptions().setInstances(instances), ar -> {
+					if (ar.succeeded()) {
 						System.out.println("Standard verticle deployed");
 
 						// Send messages on the event bus
@@ -28,7 +28,7 @@ public class StandardSample extends AbstractVerticle {
 						eventBus.send("event", "event02");
 						eventBus.send("event", "event03");
 					} else {
-						System.out.println("Error while deploying a verticle: " + res.cause().getMessage());
+						System.out.println("Error while deploying a verticle: " + ar.cause().getMessage());
 					}
 				});
 	}
